@@ -251,8 +251,8 @@ func (client *FaunaClient) BatchQueryResult(expr []Expr) (value []Value, headers
 	return
 }
 
-// Query is the primary method used to send a query language expression to FaunaDB.
-func (client *FaunaClient) Query(expr Expr, configs ...QueryConfig) (value Value, err error) {
+// QueryWithContext is like Query with an explicity context value.
+func (client *FaunaClient) QueryWithContext(ctx context.Context, expr Expr, configs ...QueryConfig) (value Value, err error) {
 	var response faunaResponse
 	var payload []byte
 
@@ -261,7 +261,7 @@ func (client *FaunaClient) Query(expr Expr, configs ...QueryConfig) (value Value
 	if payload, err = client.prepareRequestBody(expr); err == nil {
 		body := bytes.NewReader(payload)
 
-		response, err = client.performRequest(body, client.endpoint, false, configs)
+		response, err = client.performRequest(ctx, body, client.endpoint, false, configs)
 
 		httpResponse := response.response
 
@@ -282,6 +282,11 @@ func (client *FaunaClient) Query(expr Expr, configs ...QueryConfig) (value Value
 	}
 
 	return
+}
+
+// Query is the primary method used to send a query language expression to FaunaDB.
+func (client *FaunaClient) Query(expr Expr, configs ...QueryConfig) (value Value, err error) {
+	return client.QueryWithContext(context.Background(), expr, configs...)
 }
 
 // BatchQuery will sends multiple simultaneous queries to FaunaDB. values are returned in the same order
@@ -322,7 +327,7 @@ func (client *FaunaClient) Stream(query Expr, config ...StreamConfig) StreamSubs
 	return newSubscription(client, query, config...)
 }
 
-func (client *FaunaClient) startStream(subscription *StreamSubscription) (err error) {
+func (client *FaunaClient) startStream(ctx context.Context, subscription *StreamSubscription) (err error) {
 	var payload []byte
 	var response faunaResponse
 
@@ -347,7 +352,7 @@ func (client *FaunaClient) startStream(subscription *StreamSubscription) (err er
 		}
 	}
 
-	response, err = client.performRequest(body, endpoint.String(), true, nil)
+	response, err = client.performRequest(ctx, body, endpoint.String(), true, nil)
 	if err != nil {
 		return
 	}
@@ -441,14 +446,14 @@ func (client *FaunaClient) newClient(basicAuth string, observer ObserverCallback
 	}
 }
 
-func (client *FaunaClient) performRequest(body io.Reader, endpoint string, streaming bool, configs []QueryConfig) (response faunaResponse, err error) {
+func (client *FaunaClient) performRequest(ctx context.Context, body io.Reader, endpoint string, streaming bool, configs []QueryConfig) (response faunaResponse, err error) {
 	var request *http.Request
 	var timeout = time.Duration(client.queryTimeoutMs) * time.Millisecond
 	if streaming {
-		response.ctx, response.cncl = context.WithCancel(context.Background())
+		response.ctx, response.cncl = context.WithCancel(ctx)
 
 	} else {
-		response.ctx, response.cncl = context.WithTimeout(context.Background(), timeout)
+		response.ctx, response.cncl = context.WithTimeout(ctx, timeout)
 	}
 	if request, err = client.prepareRequest(response.ctx, body, endpoint, configs); err == nil {
 		response.response, err = client.http.Do(request)

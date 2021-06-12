@@ -1,6 +1,7 @@
 package faunadb
 
 import (
+	"context"
 	"errors"
 	"sync"
 )
@@ -63,7 +64,7 @@ func (sub *StreamSubscription) Status() StreamConnectionStatus {
 	return sub.status
 }
 
-func (sub *StreamSubscription) Start() (err error) {
+func (sub *StreamSubscription) StartWithContext(ctx context.Context) (err error) {
 	sub.mu.Lock()
 	defer sub.mu.Unlock()
 
@@ -71,13 +72,16 @@ func (sub *StreamSubscription) Start() (err error) {
 		err = errors.New("stream subscription already started")
 	} else {
 		sub.status = StreamConnActive
-		if err = sub.client.startStream(sub); err != nil {
+		if err = sub.client.startStream(ctx, sub); err != nil {
 			sub.status = StreamConnError
 		}
 	}
 	return
 }
 
+func (sub *StreamSubscription) Start() (err error) {
+	return sub.StartWithContext(context.Background())
+}
 
 func (sub *StreamSubscription) Close() {
 	sub.mu.Lock()
