@@ -40,17 +40,10 @@ type UnknownError struct{ FaunaError }
 
 // QueryError describes query errors returned by the server.
 type QueryError struct {
-	Position    []string            `fauna:"position"`
-	Code        string              `fauna:"code"`
-	Description string              `fauna:"description"`
-	Cause       []ValidationFailure `fauna:"cause"`
-}
-
-// ValidationFailure describes validation errors on a submitted query.
-type ValidationFailure struct {
-	Position    []string `fauna:"position"`
-	Code        string   `fauna:"code"`
-	Description string   `fauna:"description"`
+	Position    []string     `fauna:"position"`
+	Code        string       `fauna:"code"`
+	Description string       `fauna:"description"`
+	Cause       []QueryError `fauna:"cause"`
 }
 
 type errorResponse struct {
